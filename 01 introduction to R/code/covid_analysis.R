@@ -66,21 +66,21 @@ stargazer(round(sum_stat, 2), type = "html", title = "Conditional Expectations",
 ###
 
 #stat_count (=an histogram for categorical variables)
-ggplot(covid) + 
-  stat_count(mapping = aes(x = HargashaDikaon))
+ggplot(covid, mapping = aes(x = HargashaDikaon)) + 
+  stat_count()
 
 #..prop..
-ggplot(covid) + 
-  stat_count(mapping = aes(x = HargashaDikaon, y = ..prop..))
+ggplot(covid, mapping = aes(x = HargashaDikaon, y = ..prop..)) + 
+  stat_count()
 
 #facet_grid + vars
-ggplot(covid) + 
-  stat_count(mapping = aes(x = HargashaDikaon, y = ..prop..)) +
+ggplot(covid, mapping = aes(x = HargashaDikaon, y = ..prop..)) + 
+  stat_count() +
   facet_grid(cols = vars(college))
 
 #label_both
-g = ggplot(covid) + 
-  stat_count(mapping = aes(x = HargashaDikaon, y = ..prop..)) +
+g = ggplot(covid, mapping = aes(x = HargashaDikaon, y = ..prop..)) + 
+  stat_count() +
   facet_grid(cols = vars(college), rows = vars(jew), labeller = label_both) 
 
 ###
