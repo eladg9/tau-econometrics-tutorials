@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Parametric Distributions and Simulations</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Elad Guttman" />
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+    <link href="libs/anchor-sections-1.0/anchor-sections.css" rel="stylesheet" />
+    <script src="libs/anchor-sections-1.0/anchor-sections.js"></script>
+    <link rel="stylesheet" href="mytemp.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Parametric Distributions and Simulations
+### Elad Guttman
+
+---
+
+
+class: inverse, middle, center
+
+# Normal distribution
+---
+class: large
+# Details
+
+
+- Support: `\((-\infty, \infty)\)`
+
+- Parameters:
+
+ - `\(\mu\)` - a location parameter
+ 
+ - `\(\sigma\)` - a scale parameter 
+
+- PDF = `\(\frac{1}{{\sigma \sqrt {2\pi } }} e^{-\frac{1}{2} ({\frac{x-\mu}{\sigma}})^2}\)`
+ 
+- There is no closed form expression for the CDF
+
+- When `\(\mu = 0\)` and `\(\sigma = 1\)`,  it is called the **standard normal**
+
+---
+class: large
+
+#Details
+
+
+- Some useful properties:
+
+  1. If `\(X \sim \mathcal{N}(\mu,\sigma^2)\)` then:
+  &gt; `\(a + bX \sim \mathcal{N}(a + \mu, b^2\sigma^2)\)`
+  
+  2. If `\(X_1 \sim \mathcal{N}(\mu_1 , \sigma_1^2)\)` and `\(X_2 \sim \mathcal{N}(\mu_2 , \sigma_2^2)\)` are independent, then:
+  &gt; `\(X_1 + X_2 \sim \mathcal{N}(\mu_1 + \mu_2 , \sigma_1^2 + \sigma_2^2)\)`
+  
+  3. If `\(X\)` and `\(Y\)` normally distributed, then: 
+  &gt; `\(Y|X = x \sim \mathcal{N}( \mu_y + \rho \frac{\sigma_y}{\sigma_x}(x - \mu_x) , {\sigma_y}^2 (1 - \rho^2) )\)`
+
+
+
+- Practically, we always look at `\(\frac{X - \mu}{\sigma} \sim \mathcal{N}(0,1)\)`
+
+---
+ # Exploring the location parameter
+ 
+ How the normal distribution is changed as a function of `\(\mu\)`?
+ 
+ Let's simulate some data and explore!
+ 
+ 
+ ```r
+ library(tidyverse)
+ N = 1000
+ mu = c(0, 3, 6)
+ df = data.frame(matrix(ncol = 3, nrow = N))
+ set.seed(2020)
+ for(i in 1:3){
+  df[[i]] = rnorm(N, mean = mu[i], sd = 1)
+ }
+ head(df, 3)
+ ```
+ 
+ ```
+ ##           X1       X2       X3
+ ## 1  0.3769721 3.004650 4.933519
+ ## 2  0.3015484 1.771250 5.858883
+ ## 3 -1.0980232 2.859402 6.290712
+ ```
+---
+
+# Exploring the location parameter
+
+```r
+df = df %&gt;% 
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") 
+head(df, 3)
+```
+
+```
+## # A tibble: 3 x 2
+##   variable value
+##   &lt;chr&gt;    &lt;dbl&gt;
+## 1 X1       0.377
+## 2 X2       3.00 
+## 3 X3       4.93
+```
+
+```r
+p = ggplot(df, mapping = aes(x = value, color = variable)) + 
+  geom_density() +
+  scale_color_manual(name = "mu =", labels = as.character(mu), 
+                     values = c("blue", "red", "forestgreen")) +
+  scale_x_continuous(breaks = seq(-3, 9, 2), name = "x", limits = c(-3, 9)) +
+  theme(text = element_text(size=20))
+```
+ 
+---
+# Exploring the location parameter
+
+```r
+print(p)
+```
+
+&lt;img src="slides_files/figure-html/unnamed-chunk-3-1.png" style="display: block; margin: auto;" /&gt;
+
+---
+# Exploring the scale parameter
+ 
+But just before that, let's define our own plotting function:
+
+
+```r
+make_plot = function(df, legend.title, legend.labels,
+                     limits, breaks,
+                     g.colors = c("blue", "red", "forestgreen")){
+  res = df %&gt;% 
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %&gt;%
+  ggplot(df, mapping = aes(x = value, color = variable)) + 
+  geom_density() +
+  scale_color_manual(name = legend.title, labels = legend.labels, 
+                     values = g.colors) +
+  scale_x_continuous(breaks = breaks, name = "x", limits = limits) +
+  theme(text = element_text(size=20)) 
+  return(res)
+}
+```
+
+---
+ # Exploring the scale parameter
+ 
+ ```r
+ N = 10000
+ sigma = c(1, 2, 3)
+ df = data.frame(matrix(ncol = 3, nrow = N))
+ for(i in 1:3){
+  df[[i]] = sigma[i] * rnorm(N, mean = 0, sd = 1)
+ }
+ 
+ p = make_plot(df, legend.title = "sigma = ", legend.labels =as.character(sigma),
+ limits = c(-6, 6), breaks = seq(-6, 6, 1))
+ ```
+---
+
+# Exploring the scale parameter
+
+```r
+print(p)
+```
+
+&lt;img src="slides_files/figure-html/unnamed-chunk-6-1.png" style="display: block; margin: auto;" /&gt;
+---
+
+class: inverse, middle, center
+
+# Log-normal distribution
+---
+class: large
+# Details
+
+- The distribution is widely used in economics, particularly because evidence shows that income is log-normally distributed
+
+- **Definition**: 
+&gt; A random variable `\(X\)` is log-normally distributed, i.e. `\(X \sim Lognormal(\mu,\sigma^2)\)`, if `\(\ln(X) \sim \mathcal{N}(\mu, \sigma^2)\)`
+
+- So basically all the properties of the log-normal distribution are derived from the normal distribution 
+  
+  - for example: [deriving the PDF of the log-normal distribution from the normal distribution](https://en.wikipedia.org/wiki/Log-normal_distribution#Probability_density_function)
+
+- Note that `\(\mu\)` and `\(\sigma\)` have now lost their meaning as location and scale parameters
+
+---
+
+# Illustration
+
+
+```r
+mu = c(0, 0.4, 0.6)
+df = data.frame(matrix(ncol = 3, nrow = N))
+for(i in 1:3){
+  ln_x = rnorm(N, mean = mu[i], sd = 1)
+  df[[i]] = exp(ln_x)
+}
+
+p = make_plot(df, legend.title = "mu = ", legend.labels = as.character(mu),
+              breaks = seq(0, 5, 1), limits = c(0, 5))
+```
+
+---
+# Illustration
+
+```r
+print(p)
+```
+
+&lt;img src="slides_files/figure-html/unnamed-chunk-8-1.png" style="display: block; margin: auto;" /&gt;
+
+---
+&lt;img src="slides_files/us_wage_dis.jpg" width="130%" /&gt;
+
+---
+class: inverse, middle, center
+
+# Chi-square distribution
+---
+class: large
+# Details
+
+- The distribution is widely used in statistics, particularly because in some statistical hypothesis tests, the test statistic follows a chi-square distribution under the null hypothesis. (see: [Chi-squared test](https://en.wikipedia.org/wiki/Chi-squared_test))
+
+- **Definition**: 
+&gt; If `\(Z_1, ..., Z_k\)` are independent, standard normal random variables, then the sum of their squares `\(X = \sum_{i=1}^{k}{Z_i}^2\)` follows the chi-squared distribution with `\(k\)` 'degrees of freedom', i.e. `\(X \sim {\chi_k}^2\)`
+
+- Some properties arising from the definition:
+  - Support: `\((0, \infty)\)`
+  - Parameter: `\(k \in \mathbb{N}\)` (a.k.a 'degrees of freedom')
+
+---
+class: large
+# Details
+
+- Other useful properties:
+  1. If `\(Z_1, ..., Z_k\)` are independent, standard normal random variables, then:
+  &gt; `\(\sum_{i=1}^{k}(Z_i - \bar{Z})^2 \sim \chi_{k-1}^2\)`
+  
+  2. If `\(X_1 \sim \chi_{k_1}^2\)` and `\(X_2 \sim \chi_{k_2}^2\)` are independent, then:
+  &gt; `\(X_1 + X_2 \sim \chi_{k_1 + k_2}^2\)`
+  
+  3. If `\(X \sim \chi_k^2\)` then:
+  &gt; `\(E(X) = k\)`, `\(Var(X) = 2k\)`
+  
+  4. By the CLT, as `\(k \rightarrow \infty\)`, `\(\chi_k^2 \rightarrow \mathcal{N}(k,\sqrt{2k})\)`
+  
+---
+# Illustration
+
+
+```r
+k = c(5, 20, 50)
+df = data.frame(matrix(ncol = 3, nrow = N))
+for(i in 1:3){
+  df[[i]] = rchisq(N, k[i])
+}
+
+p = make_plot(df, legend.title = "k =", legend.labels = as.character(k),
+              breaks = seq(0, 100, 20), limits = c(0, 100))
+
+#or alternatively, directly using the definition:
+#for(i in 1:3){
+#  tmp = rep(0, N)
+#  for(j in 1:k[i]){
+#    tmp = tmp + rnorm(N, 0, 1)^2
+#  }
+#  df[[i]] = tmp
+#}
+```
+
+---
+# Illustration
+
+```r
+print(p)
+```
+
+&lt;img src="slides_files/figure-html/unnamed-chunk-10-1.png" style="display: block; margin: auto;" /&gt;
+
+---
+class: inverse, middle, center
+
+# Student's t-distribution
+
+---
+class: large
+# Details
+
+- The distribution is widely used in statistics, particularly because in many statistical hypothesis tests, the test statistic follows a student's t-distribution under the null hypothesis. (see: [Student's t-test](https://en.wikipedia.org/wiki/Student%27s_t-test))
+
+
+- **Definition**: 
+&gt; If `\(Z \sim \mathcal{N}(0,1)\)` and `\(X \sim \chi_k^2\)` are independent, then: &lt;br&gt;
+`\(\frac{Z}{\sqrt{X/k}} \sim t_k\)`
+
+- Some properties arising from the definition:
+  - Support: `\((-\infty, \infty)\)`
+  - Parameter: `\(k \in \mathbb{N}\)` (a.k.a 'degrees of freedom')
+  
+- Another important property: as `\(k \rightarrow \infty\)`, `\(t_k \rightarrow \mathcal{N}(0,1)\)`
+
+---
+
+# Illustration
+
+
+```r
+k = c(2, 5, 20)
+df = data.frame(matrix(ncol = 4, nrow = N))
+set.seed(38)
+for(i in 1:3){
+  df[[i]] = rt(N, k[i])
+}
+df[,4] = rnorm(N, 0, 1)
+
+p = make_plot(df, legend.title = " ", 
+              legend.labels = c("k = 2", "k = 5", "k = 20", "standard normal"),
+              breaks = seq(-3, 3, 1), limits = c(-3, 3),
+              g.colors = c("blue", "red", "forestgreen", "black"))
+```
+
+---
+# Illustration
+
+```r
+print(p)
+```
+
+&lt;img src="slides_files/figure-html/unnamed-chunk-12-1.png" style="display: block; margin: auto;" /&gt;
+
+---
+class: inverse, middle, center
+
+# F-distribution
+
+---
+class: large
+
+# Details
+
+- The distribution is widely used in statistics, particularly because in some statistical hypothesis tests, the test statistic follows an F distribution under the null hypothesis. (see: [F-test](https://en.wikipedia.org/wiki/F-test))
+
+
+- **Definition**: 
+&gt; If `\(X_1\)` and `\(X_2\)` are two independent chi-squared variables with degrees of freedom parameters `\(d_1\)` and `\(d_2\)`, respectively, then: &lt;br&gt;&lt;br&gt;
+`\(\frac{X_1 / d_1}{X_2 / d_2} \sim F_{d_1,d_2}\)`
+
+- Some properties arising from the definition:
+  - Support: `\((0, \infty)\)`
+  - Parameters: `\(d_1 \in \mathbb{N}\)` and `\(d_2 \in \mathbb{N}\)`
+  
+- Note that when `\(d_1 = 1\)`, `\(\sqrt{\frac{X_1}{X_2 / d_2}} \sim t_{d_2}\)`
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false,
+"ratio": "16:9"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
