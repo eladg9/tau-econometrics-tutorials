@@ -20,8 +20,24 @@ class: title-slide-section-blue, middle, center
 ##Elad Guttman
 
 ---
+class: large
+
+# Outline
+
+1. [Normal distribution](#normal)
+
+2. [Log-normal distribution](#log)
+
+3. [Chi-square distribution](#chi)
+
+4. [Student's t-distribution](#t)
+
+5. [F-distribution](#f)
+
+---
 
 class: title-slide-section-blue, middle, center
+name: normal
 
 # Normal distribution
 ---
@@ -146,6 +162,7 @@ print(p)
 ---
 
 class: title-slide-section-blue, middle, center
+name: log
 
 # Log-normal distribution
 ---
@@ -193,6 +210,7 @@ knitr::include_graphics("slides_files/us_wage_dis.jpg")
 
 ---
 class:  title-slide-section-blue, middle, center
+name: chi
 
 # Chi-square distribution
 ---
@@ -256,6 +274,7 @@ print(p)
 
 ---
 class: title-slide-section-blue, middle, center
+name: t
 
 # Student's t-distribution
 
@@ -304,6 +323,7 @@ print(p)
 
 ---
 class: title-slide-section-blue, middle, center
+name: f
 
 # F-distribution
 
