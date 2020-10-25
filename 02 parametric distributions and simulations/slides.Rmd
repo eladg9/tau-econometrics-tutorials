@@ -4,7 +4,7 @@ author: "Elad Guttman"
 output:
   xaringan::moon_reader:
     seal: false
-    css: ["middlebury", "middlebury-fonts" , "mytemp.css"]
+    css: ["middlebury", "middlebury-fonts" , "libs/mytemp.css"]
     lib_dir: libs
     nature:
       highlightStyle: github
@@ -67,8 +67,8 @@ class: large
 
 - Some useful properties:
 
-  1. If $X \sim \mathcal{N}(\mu,\sigma^2)$ then:
-  > $a + bX \sim \mathcal{N}(a + \mu, b^2\sigma^2)$
+  1. If $X \sim \mathcal{N}(0, 1)$ then:
+  > $\mu + \sigma X \sim \mathcal{N}(\mu, \sigma^2)$
   
   2. If $X_1 \sim \mathcal{N}(\mu_1 , \sigma_1^2)$ and $X_2 \sim \mathcal{N}(\mu_2 , \sigma_2^2)$ are independent, then:
   > $X_1 + X_2 \sim \mathcal{N}(\mu_1 + \mu_2 , \sigma_1^2 + \sigma_2^2)$
