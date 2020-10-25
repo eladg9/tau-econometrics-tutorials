@@ -3,7 +3,8 @@ title: "Parametric Distributions and Simulations"
 author: "Elad Guttman"
 output:
   xaringan::moon_reader:
-    css: ["default", "default-fonts" , "mytemp.css"]
+    seal: false
+    css: ["middlebury", "middlebury-fonts" , "mytemp.css"]
     lib_dir: libs
     nature:
       highlightStyle: github
@@ -12,8 +13,15 @@ output:
       ratio: '16:9'
 
 ---
+class: title-slide-section-blue, middle, center
 
-class: inverse, middle, center
+# Parametric Distributions and Simulations
+
+##Elad Guttman
+
+---
+
+class: title-slide-section-blue, middle, center
 
 # Normal distribution
 ---
@@ -137,7 +145,7 @@ print(p)
 ```
 ---
 
-class: inverse, middle, center
+class: title-slide-section-blue, middle, center
 
 # Log-normal distribution
 ---
@@ -184,7 +192,7 @@ knitr::include_graphics("slides_files/us_wage_dis.jpg")
 ```
 
 ---
-class: inverse, middle, center
+class:  title-slide-section-blue, middle, center
 
 # Chi-square distribution
 ---
@@ -247,7 +255,7 @@ print(p)
 ```
 
 ---
-class: inverse, middle, center
+class: title-slide-section-blue, middle, center
 
 # Student's t-distribution
 
@@ -295,7 +303,7 @@ print(p)
 ```
 
 ---
-class: inverse, middle, center
+class: title-slide-section-blue, middle, center
 
 # F-distribution
 
@@ -317,3 +325,4 @@ $\frac{X_1 / d_1}{X_2 / d_2} \sim F_{d_1,d_2}$
   
 - Note that when $d_1 = 1$, $\sqrt{\frac{X_1}{X_2 / d_2}} \sim t_{d_2}$
 
+ 
