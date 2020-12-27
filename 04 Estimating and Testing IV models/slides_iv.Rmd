@@ -74,7 +74,7 @@ class: large
 
   a. $rank(E(z'z)) = L$ - no multicollinearity
   
-  b. $rank(E(z'x)) = K$ - The instruments are correlated with $X$, in the sense that the model is at least just-identified ( $L \geq K$ )
+  b. $rank(E(z'x)) = K$ - The instruments are correlated with $X$, and the model is at least just-identified ( $L \geq K$ )
   
 ---
 class: large
