@@ -1,0 +1,81 @@
+---
+title: "Heteroskedasticity analysis in R"
+author: "Elad Guttman"
+date: "12/01/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+As you saw in class, all the functions you need for analysis when the homoskedasticity assumption is violated are available in the `lfe` package. In this tutorial we demonstrate how to build confidence intervals and perform hypothesis testing while adjusting for heteroskedasticity standard errors, using the `lfe` package.
+
+## Building confidence intervals
+
+Throughout this example we'll work with the 'wage2' dataset from the `wooldridge` package and use the `stargazer` package to report the results in a nice table. Let's first load all the necessary packages:
+```{r, message=FALSE, warning=F}
+library(lfe)
+library(wooldridge)
+library(stargazer)
+```
+
+Then let's estimate the model: $lnwage = \beta_0 + \beta_1IQ + \beta_2black + \beta_3married$ and report the results after adjustment for heteroskedasticity (the `felm` function uses the hinkley adjustment you learned in class):  
+
+```{r, message=FALSE, warning=F}
+data(wage2)
+reg = felm(lwage ~ IQ + black + married, data = wage2)
+adjusted_res = summary(reg, robust = T)
+#we can now print 'adjusted_res' and see the adjusted results.
+#But here we go for the preferred option - to print a nice table using stargazer.
+#To do so, we need to replace the standard results with the robust results:
+adjusted_se = adjusted_res$coefficients[,"Robust s.e"] #extract robust se
+adjusted_pval = adjusted_res$coefficients[,"Pr(>|t|)"] #extract robust p-value
+stargazer(reg, se = list(adjusted_se), p = list(adjusted_pval), type = "text")
+```
+
+---
+
+Now assume we want to build a 95% confidence interval for $\theta = \beta_2 + \beta_3$. All we need for that is a point estimate (i.e. $\hat{\theta}$), and an asymptotic estimate for its variance: $V(\hat{\theta}) = V(\hat{\beta_2}) + V(\hat{\beta_3}) + 2COV(\hat{\beta_2}, \hat{\beta_3})$. Then we can calculate $CI(\theta) = \hat{\theta} \pm 1.96\sqrt{\hat{V}(\hat{\theta})}$. You already saw how to extract coefficients from a regression object in R, so all that is left to learn is how to extract the (adjusted) covariance matrix:
+
+```{r, message=FALSE, warning=F}
+cov_mat = reg$robustvcv
+print(cov_mat)
+```
+
+---
+
+Now we can apply the explicit formula and report the confidence interval:
+```{r}
+theta = coef(reg)["black"] + coef(reg)["married"]
+v_theta = diag(cov_mat)["black"] + diag(cov_mat)["married"] + 2*cov_mat["black", "married"]
+alpha = 0.05
+z = qnorm(1 - alpha/2)
+cat("CI for theta: (", theta-z*sqrt(v_theta), ",", theta+z*sqrt(v_theta), ")")
+```
+
+## Linear and non-linear hypothesis testing
+
+Assume that in addition to reporting the the confidence interval for $\theta$ we want to test the null hypothesis: $H_0: \theta = \beta_2 + \beta_3 = 0$. As you saw in class, we need to perform a wald-test with $r = 0$ and $R = (0, 0, 1, 1)$. Here is how we do so using the `waldtest` function, adjusting for heteroskedasticity SE^[In class you saw the `linearhypothesis` function. Those functions are similar, but the `waldtest` function also supports testing for nonlinear hypothesis.] :
+```{r}
+r = 0
+R = matrix(c(0, 0, 1, 1), nrow = 1)
+waldtest(reg, R = R, r = r, type = "robust")
+```
+
+You can see from the output that the value of the test-statistic (that follows the chi-squared distribution) is 0.74, which isn't significant at the 5% level (p-value = 0.38).  
+
+Next, let's see how to use `waldtest` to test the non-linear hypothesis $H_0: g(\beta) = \beta_2^2 + \beta_3^2 = 0$. The first step is to define $g(\beta)$:
+```{r}
+g_beta = function(beta){
+  return(beta["black"]^2 + beta["married"]^2)
+}
+```
+
+Once we have $g(\beta)$, we can provide it to the `waldtest` function, and it will test the null hypothesis (i.e., $H_0: g(\beta) = 0$):
+```{r}
+waldtest(reg, R = g_beta, type = "robust")
+```
+---
+
+Here we get $W = 10.64$ and so we reject the null hypothesis (p-value = 0.001).

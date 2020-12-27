@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Estimating and Testing IV models in R</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Elad Guttman" />
+    <link href="libs/remark-css-0.0.1/middlebury.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/middlebury-fonts.css" rel="stylesheet" />
+    <link href="libs/anchor-sections-1.0/anchor-sections.css" rel="stylesheet" />
+    <script src="libs/anchor-sections-1.0/anchor-sections.js"></script>
+    <link rel="stylesheet" href="libs/mytemp.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+
+
+class: title-slide-section-blue, middle, center
+
+# Estimating and Testing IV models in R
+
+##Elad Guttman
+
+---
+class: large
+
+# Outline
+
+1. [A Reminder](#reminder)
+
+2. [One endogenous variable](#one)
+
+3. [Multiple endogenous variables](#multiple)
+
+
+---
+class: title-slide-section-blue, middle, center
+name: reminder
+
+#A Reminder
+
+---
+class: large
+
+# The Model
+
+- The general model you discussed in class:
+
+`$$y = X\beta + u = X_1\beta_1 + X_2\beta_2 + u$$`
+
+- where:
+
+  - `\(x_1\)` are `\(k_1\)` exogenous variables
+  
+  - `\(x_2\)` are `\(k_2\)` endogenous variables
+  
+  - `\(K = k_1 + k_2\)`
+
+- `\(z\)` is a `\(1 \times L\)` vector of: 
+  
+  - `\(k_1\)` exogenous variables
+  
+  - `\(m\)` instruments
+  
+  - `\(L = k_1 + m\)`
+
+---
+class: large
+
+# The Identification Assumptions
+
+1. **2SLS.1:** `\(E(z'u) = 0\)` - all the variables in `\(z\)` are uncorrelated with `\(u\)`
+
+2. **2SLS.2:** 
+
+  a. `\(rank(E(z'z)) = L\)` - no multicollinearity
+  
+  b. `\(rank(E(z'x)) = K\)` - The instruments are correlated with `\(X\)`, in the sense that the model is at least just-identified ( `\(L \geq K\)` )
+  
+---
+class: large
+
+# The 2SLS Estimator
+
+1. **First stage:** for each endogenous variable `\(j\)` we estimate:
+`$$x_j = Z\delta + \epsilon$$` using OLS.
+
+2. **Second stage:** then we replace `\(x_2\)` with `\(\hat{x}_2\)` (i.e., the predicted values from the first stage) and estimate:
+`$$y = X_1\beta_1 + \hat{X}_2\beta_2 + u$$` using OLS (again). Under assumptions **2SLS.1** and **2SLS.2**, this is a valid procedure for obtaining a consistent estimate for `\(\beta\)`.
+
+---
+class: title-slide-section-blue, middle, center
+name: one
+
+# One endogenous variable
+
+---
+class: large
+
+# Data
+
+For this exercise, we'll use the following dataset:
+
+
+
+```r
+library(wooldridge)
+data("card")
+#function to print the content from an R help file. 
+#You don't need that, just use ?card instead
+help_console(card, "text", 5:8) 
+```
+
+```
+##      Wooldridge Source: D. Card (1995), Using Geographic Variation in
+##      College Proximity to Estimate the Return to Schooling, in Aspects
+##      of Labour Market Behavior: Essays in Honour of John Vanderkamp.
+##      Ed. L.N. Christophides, E.K. Grant, and R. Swidinsky, 201-222.
+```
+
+---
+class: large
+
+#Data
+
+We'll pay special attention to the following variables:
+
+```r
+help_console(card, "text", c(22:27, 30:33, 70:71))
+```
+
+```
+##         • *nearc2:* =1 if near 2 yr college, 1966
+## 
+##         • *nearc4:* =1 if near 4 yr college, 1966
+## 
+##         • *educ:* years of schooling, 1976
+## 
+##         • *fatheduc:* father's schooling
+## 
+##         • *motheduc:* mother's schooling
+## 
+##         • *wage:* hourly wage in cents, 1976
+```
+
+---
+class: large
+
+# Estimation
+
+The familiar `lfe` package provides flexiable syntax for estimating IV models. Here are some examples: 
+
+
+```r
+library(lfe)
+library(stargazer)
+library(tidyverse)
+
+card = card %&gt;%
+  select(lwage, nearc2, nearc4, fatheduc, motheduc, educ) %&gt;%
+  drop_na() #caution: in general, this is a bad practice!
+
+#one endogenous variable, two exogenous variables, and one instrument
+twosls_with_exog = felm(lwage ~ fatheduc + motheduc | 0 | (educ ~ nearc4), data = card)
+
+#one endogenous variable and one instrument, no exogenous variables
+twosls_no_exog = felm(lwage ~ 1 | 0 | (educ ~ nearc4), data = card)
+
+#we can easily look at the first stage results:
+stage1_with_exog = twosls_with_exog$stage1
+stage1_no_exog = twosls_no_exog$stage1
+```
+
+---
+
+## First Stage
+
+
+```r
+stargazer(stage1_no_exog, stage1_with_exog, dep.var.labels = "educ",
+          type = "text", keep.stat = c("n"))
+```
+
+```
+## 
+## =========================================
+##                  Dependent variable:     
+##              ----------------------------
+##                          educ            
+##                   (1)            (2)     
+## -----------------------------------------
+## fatheduc                      0.216***   
+##                                (0.017)   
+##                                          
+## motheduc                      0.203***   
+##                                (0.020)   
+##                                          
+## nearc4          0.703***      0.364***   
+##                 (0.118)        (0.103)   
+##                                          
+## Constant       13.143***      9.043***   
+##                 (0.098)        (0.183)   
+##                                          
+## -----------------------------------------
+## Observations     2,220          2,220    
+## =========================================
+## Note:         *p&lt;0.1; **p&lt;0.05; ***p&lt;0.01
+```
+
+---
+## Second Stage
+
+
+```r
+stargazer(twosls_no_exog, twosls_with_exog, type = "text", keep.stat = c("n"))
+```
+
+```
+## 
+## =========================================
+##                  Dependent variable:     
+##              ----------------------------
+##                         lwage            
+##                   (1)            (2)     
+## -----------------------------------------
+## fatheduc                      -0.051**   
+##                                (0.020)   
+##                                          
+## motheduc                      -0.039**   
+##                                (0.019)   
+##                                          
+## `educ(fit)`     0.179***      0.287***   
+##                 (0.035)        (0.089)   
+##                                          
+## Constant        3.851***      3.311***   
+##                 (0.483)        (0.820)   
+##                                          
+## -----------------------------------------
+## Observations     2,220          2,220    
+## =========================================
+## Note:         *p&lt;0.1; **p&lt;0.05; ***p&lt;0.01
+```
+
+---
+## Standard Errors
+
+
+```r
+#As usual, the felm function also calculates robust SE:
+stage1_no_exog$robustvcv
+```
+
+```
+##             (Intercept)      nearc4
+## (Intercept)  0.01014738 -0.01014738
+## nearc4      -0.01014738  0.01433573
+```
+
+```r
+twosls_no_exog$robustvcv
+```
+
+```
+##             (Intercept)  `educ(fit)`
+## (Intercept)  0.22874653 -0.016784276
+## `educ(fit)` -0.01678428  0.001232261
+```
+
+```r
+summary(twosls_no_exog, robust = T)$coefficients
+```
+
+```
+##              Estimate Robust s.e  t value     Pr(&gt;|t|)
+## (Intercept) 3.8514036 0.47827453 8.052705 1.307759e-15
+## `educ(fit)` 0.1786111 0.03510358 5.088118 3.920201e-07
+```
+
+---
+# Manual Estimation
+
+Alternatively, we can estimate IV models manually by estimating two OLS models: 
+
+
+```r
+manual_stage1_with_exog = lm(educ ~ fatheduc + motheduc + nearc4, data = card) 
+
+card$`educ(fit)` = predict(manual_stage1_with_exog)
+manual_twosls_with_exog = lm(lwage ~ fatheduc + motheduc + `educ(fit)`, data = card)
+```
+
+---
+## First Stage
+
+
+```r
+stargazer(manual_stage1_with_exog, stage1_with_exog ,dep.var.labels.include = F, dep.var.caption = "Model:",
+          type = "text", keep.stat = c("n"))
+```
+
+```
+## 
+## =========================================
+##                         Model:           
+##              ----------------------------
+##                   OLS           felm     
+##                   (1)            (2)     
+## -----------------------------------------
+## fatheduc        0.216***      0.216***   
+##                 (0.017)        (0.017)   
+##                                          
+## motheduc        0.203***      0.203***   
+##                 (0.020)        (0.020)   
+##                                          
+## nearc4          0.364***      0.364***   
+##                 (0.103)        (0.103)   
+##                                          
+## Constant        9.043***      9.043***   
+##                 (0.183)        (0.183)   
+##                                          
+## -----------------------------------------
+## Observations     2,220          2,220    
+## =========================================
+## Note:         *p&lt;0.1; **p&lt;0.05; ***p&lt;0.01
+```
+
+---
+
+## Second Stage
+
+.pull-left[
+
+```
+## 
+## =========================================
+##                         Model:           
+##              ----------------------------
+##                   OLS           felm     
+##                   (1)            (2)     
+## -----------------------------------------
+## fatheduc       -0.051***      -0.051**   
+##                 (0.013)        (0.020)   
+##                                          
+## motheduc       -0.039***      -0.039**   
+##                 (0.012)        (0.019)   
+##                                          
+## `educ(fit)`     0.287***      0.287***   
+##                 (0.054)        (0.089)   
+##                                          
+## Constant        3.311***      3.311***   
+##                 (0.503)        (0.820)   
+##                                          
+## -----------------------------------------
+## Observations     2,220          2,220    
+## =========================================
+## Note:         *p&lt;0.1; **p&lt;0.05; ***p&lt;0.01
+```
+]
+
+--
+
+.pull-right[
+  .red[.large[Keep in mind that the right standard errors &lt;br&gt;
+  aren't the standard errors of the second stage!]]
+]
+
+---
+
+# Testing for weak instruments
+
+- Remember that weak instrument can cause the 2SLS estimator to be biased towards OLS. 
+
+- We can test that by testing the null that the coefficients on the excluded instruments are 0.
+
+- This is a simple Wald / F-test.
+
+
+```r
+r = 0
+R = matrix(c(0, 0, 0, 1), nrow = 1)
+waldtest(stage1_with_exog, R, r)
+```
+
+```
+##            p         chi2          df1          p.F            F          df2 
+## 4.262525e-04 1.241345e+01 1.000000e+00 4.348831e-04 1.241345e+01 2.216000e+03 
+## attr(,"formula")
+## ~nearc4
+## &lt;environment: 0x7feb64aca2b8&gt;
+```
+
+---
+
+# Testing for weak instruments
+
+`felm` calculates this F-statistic by default (and also the robust version):
+
+```r
+stage1_with_exog$iv1fstat
+```
+
+```
+## $educ
+##            p         chi2          df1          p.F            F          df2 
+## 4.262525e-04 1.241345e+01 1.000000e+00 4.348831e-04 1.241345e+01 2.216000e+03 
+## attr(,"formula")
+## ~nearc4
+## &lt;environment: 0x7feb60061b98&gt;
+```
+
+```r
+stage1_with_exog$rob.iv1fstat
+```
+
+```
+## $educ
+##            p         chi2          df1          p.F            F          df2 
+## 4.313838e-04 1.239111e+01 1.000000e+00 4.400888e-04 1.239111e+01 2.216000e+03 
+## attr(,"formula")
+## ~nearc4
+## &lt;environment: 0x7feb60080e40&gt;
+```
+
+---
+class: title-slide-section-blue, middle, center
+name: multiple
+
+# Multiple endogenous variables
+
+---
+
+# Estimation
+
+Very easy with the `felm` function:
+
+
+```r
+#genetate squared education,
+#so that we'll have two endogenous variables:
+card = card %&gt;%
+  mutate(educ2 = educ^2)
+
+twosls = felm(lwage ~ fatheduc + motheduc | 0 | (educ | educ2 ~ nearc4 + nearc2), data = card)
+
+stage1 = twosls$stage1
+```
+
+---
+
+## First Stage
+
+
+```r
+summary(stage1, lhs = "educ")$coefficients
+```
+
+```
+##                Estimate Std. Error    t value     Pr(&gt;|t|)
+## (Intercept)  9.05423913 0.18370566 49.2866641 0.000000e+00
+## fatheduc     0.21694207 0.01665175 13.0281834 1.937660e-37
+## motheduc     0.20322762 0.02002206 10.1501861 1.081443e-23
+## nearc4       0.37209458 0.10417818  3.5717133 3.622168e-04
+## nearc2      -0.05817805 0.09690856 -0.6003396 5.483413e-01
+```
+
+
+
+```r
+summary(stage1, lhs = "educ2")$coefficients
+```
+
+```
+##              Estimate Std. Error    t value     Pr(&gt;|t|)
+## (Intercept) 72.955840  4.9895297 14.6217869 2.726431e-46
+## fatheduc     5.655023  0.4522692 12.5036656 1.028820e-34
+## motheduc     5.304095  0.5438083  9.7536117 4.907601e-22
+## nearc4       9.669448  2.8295269  3.4173373 6.437919e-04
+## nearc2      -1.090832  2.6320809 -0.4144371 6.785941e-01
+```
+
+---
+
+## Second Stage
+
+.pull-left[
+
+```
+## 
+## ========================================
+##                  Dependent variable:    
+##              ---------------------------
+##                         lwage           
+## ----------------------------------------
+## fatheduc               -0.048           
+##                        (0.063)          
+##                                         
+## motheduc               -0.037           
+##                        (0.059)          
+##                                         
+## `educ(fit)`            -5.055           
+##                        (5.777)          
+##                                         
+## `educ2(fit)`            0.204           
+##                        (0.222)          
+##                                         
+## Constant               36.758           
+##                       (36.087)          
+##                                         
+## ----------------------------------------
+## Observations            2,220           
+## ========================================
+## Note:        *p&lt;0.1; **p&lt;0.05; ***p&lt;0.01
+```
+]
+
+--
+
+.pull-right[
+.red[.large[In the following slides we'll see that
+            this estimation suffers from a weak IV problem,
+            so do not try to interpret these results]]
+]
+---
+
+# Testing for weak instruments
+
+
+```r
+stage1$iv1fstat
+```
+
+```
+## $educ
+##            p         chi2          df1          p.F            F          df2 
+## 1.686436e-03 1.277028e+01 2.000000e+00 1.717644e-03 6.385138e+00 2.215000e+03 
+## attr(,"formula")
+## ~nearc4 | nearc2
+## &lt;environment: 0x7feb634c0c20&gt;
+## 
+## $educ2
+##            p         chi2          df1          p.F            F          df2 
+## 2.907569e-03 1.168088e+01 2.000000e+00 2.952532e-03 5.840438e+00 2.215000e+03 
+## attr(,"formula")
+## ~nearc4 | nearc2
+## &lt;environment: 0x7feb6446d730&gt;
+```
+
+--
+
+&lt;br&gt;&lt;br&gt;
+.red[.large[What is this test? Is it enough?]]
+
+---
+class: large
+
+# Testing for weak instruments
+
+- This is an equation-by-equation F-test
+
+- For each first stage equation, we test `\(H_0: \beta_{nearc2} = \beta_{nearc4} = 0\)`
+
+- Remember the alternative: `\(H_1: \beta_{nearc2} \not= 0\)` .red[or] `\(\beta_{nearc4} \not= 0\)`
+
+- So a single instrument could be correlated with all the endogenous regressors,
+while the rest of the instruments are not
+
+- This is not enough
+
+---
+class: large
+
+# Conditional F-test
+
+The **general** idea proposed by Angrist and Pischke (2009):
+
+- Consider a model with two endogenous variables, `\(x_1\)` and `\(x_2\)` and a valid vector of instruments `\(z\)`
+
+- Let's look at the following model: `\(y = \beta_1x_1 + \beta_2\hat{x_2} + u*\)`
+  
+  - `\(\hat{x_2}\)` is exogenous since `\(\hat{x_2} = P_zx_2\)`
+  
+  - `\(x_1\)` is endogenous and (potentially) correlated with `\(\hat{x_2}\)`
+  
+---
+class: large
+
+# Conditional F-test
+  
+- Now let's regress `\(x_1\)` on `\(\hat{x_2}\)` and keep the residuals `\(M_{\hat{x_2}}x_1\)`
+
+- Let's look at the following model: `\(y = \beta_1M_{\hat{x_2}}x_1 + \epsilon\)`
+
+  - `\(M_{\hat{x_2}}x_1\)` is endogenous, but not correlated with `\(\hat{x_2}\)`
+  
+  - This is the short version of the previous equation
+  
+  - Applying the 2SLS procedure yields a consistent estimate for `\(\beta_1\)`
+  
+- So now we have only one endogenous variable, and we can use the usual F-test in the first stage: `\(M_{\hat{x_2}}x_1 = \kappa Z + \epsilon*\)`
+
+--
+
+- .red[Note: This is just the general idea. See Sanderson and Windmeijer (2016) for the formal test]
+
+---
+class: large
+
+# Conditional F-test
+
+`condfstat` from the `lfe` package performs that test:
+
+```r
+condfstat(twosls)
+```
+
+```
+##          educ    educ2
+## iid F 1.01738 1.009886
+## attr(,"df1")
+## [1] 1
+```
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false,
+"ratio": "16:9"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

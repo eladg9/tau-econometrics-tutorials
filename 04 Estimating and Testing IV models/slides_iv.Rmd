@@ -1,0 +1,386 @@
+---
+title: "Estimating and Testing IV models in R"
+author: "Elad Guttman"
+output:
+  xaringan::moon_reader:
+    seal: false
+    css: ["middlebury", "middlebury-fonts" , "libs/mytemp.css"]
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: '16:9'
+
+---
+
+class: title-slide-section-blue, middle, center
+
+# Estimating and Testing IV models in R
+
+##Elad Guttman
+
+---
+class: large
+
+# Outline
+
+1. [A Reminder](#reminder)
+
+2. [One endogenous variable](#one)
+
+3. [Multiple endogenous variables](#multiple)
+
+
+---
+class: title-slide-section-blue, middle, center
+name: reminder
+
+#A Reminder
+
+---
+class: large
+
+# The Model
+
+- The general model you discussed in class:
+
+$$y = X\beta + u = X_1\beta_1 + X_2\beta_2 + u$$
+
+- where:
+
+  - $x_1$ are $k_1$ exogenous variables
+  
+  - $x_2$ are $k_2$ endogenous variables
+  
+  - $K = k_1 + k_2$
+
+- $z$ is a $1 \times L$ vector of: 
+  
+  - $k_1$ exogenous variables
+  
+  - $m$ instruments
+  
+  - $L = k_1 + m$
+
+---
+class: large
+
+# The Identification Assumptions
+
+1. **2SLS.1:** $E(z'u) = 0$ - all the variables in $z$ are uncorrelated with $u$
+
+2. **2SLS.2:** 
+
+  a. $rank(E(z'z)) = L$ - no multicollinearity
+  
+  b. $rank(E(z'x)) = K$ - The instruments are correlated with $X$, in the sense that the model is at least just-identified ( $L \geq K$ )
+  
+---
+class: large
+
+# The 2SLS Estimator
+
+1. **First stage:** for each endogenous variable $j$ we estimate:
+$$x_j = Z\delta + \epsilon$$ using OLS.
+
+2. **Second stage:** then we replace $x_2$ with $\hat{x}_2$ (i.e., the predicted values from the first stage) and estimate:
+$$y = X_1\beta_1 + \hat{X}_2\beta_2 + u$$ using OLS (again). Under assumptions **2SLS.1** and **2SLS.2**, this is a valid procedure for obtaining a consistent estimate for $\beta$.
+
+---
+class: title-slide-section-blue, middle, center
+name: one
+
+# One endogenous variable
+
+---
+class: large
+
+# Data
+
+For this exercise, we'll use the following dataset:
+```{r, include=F}
+help_console <- function(topic, format=c("text", "html", "latex", "Rd"),
+                         lines=NULL, before=NULL, after=NULL) {  
+  format=match.arg(format)
+  if (!is.character(topic)) topic <- deparse(substitute(topic))
+  helpfile = utils:::.getHelpFile(help(topic))
+  hs <- capture.output(switch(format, 
+                              text=tools:::Rd2txt(helpfile),
+                              html=tools:::Rd2HTML(helpfile),
+                              latex=tools:::Rd2latex(helpfile),
+                              Rd=tools:::prepare_Rd(helpfile)
+                              )
+                      )
+  if(!is.null(lines)) hs <- hs[lines]
+  hs <- c(before, hs, after)
+  cat(hs, sep="\n")
+  invisible(hs)
+}
+
+```
+
+```{r, message=F, warning=F}
+library(wooldridge)
+data("card")
+#function to print the content from an R help file. 
+#You don't need that, just use ?card instead
+help_console(card, "text", 5:8) 
+```
+
+---
+class: large
+
+#Data
+
+We'll pay special attention to the following variables:
+```{r}
+help_console(card, "text", c(22:27, 30:33, 70:71))
+```
+
+---
+class: large
+
+# Estimation
+
+The familiar `lfe` package provides flexiable syntax for estimating IV models. Here are some examples: 
+
+```{r, message=F, warning=F}
+library(lfe)
+library(stargazer)
+library(tidyverse)
+
+card = card %>%
+  select(lwage, nearc2, nearc4, fatheduc, motheduc, educ) %>%
+  drop_na() #caution: in general, this is a bad practice!
+
+#one endogenous variable, two exogenous variables, and one instrument
+twosls_with_exog = felm(lwage ~ fatheduc + motheduc | 0 | (educ ~ nearc4), data = card)
+
+#one endogenous variable and one instrument, no exogenous variables
+twosls_no_exog = felm(lwage ~ 1 | 0 | (educ ~ nearc4), data = card)
+
+#we can easily look at the first stage results:
+stage1_with_exog = twosls_with_exog$stage1
+stage1_no_exog = twosls_no_exog$stage1
+```
+
+---
+
+## First Stage
+
+```{r}
+stargazer(stage1_no_exog, stage1_with_exog, dep.var.labels = "educ",
+          type = "text", keep.stat = c("n"))
+
+```
+
+---
+## Second Stage
+
+```{r}
+stargazer(twosls_no_exog, twosls_with_exog, type = "text", keep.stat = c("n"))
+```
+
+---
+## Standard Errors
+
+```{r}
+#As usual, the felm function also calculates robust SE:
+stage1_no_exog$robustvcv
+twosls_no_exog$robustvcv
+
+summary(twosls_no_exog, robust = T)$coefficients
+```
+
+---
+# Manual Estimation
+
+Alternatively, we can estimate IV models manually by estimating two OLS models: 
+
+```{r}
+manual_stage1_with_exog = lm(educ ~ fatheduc + motheduc + nearc4, data = card) 
+
+card$`educ(fit)` = predict(manual_stage1_with_exog)
+manual_twosls_with_exog = lm(lwage ~ fatheduc + motheduc + `educ(fit)`, data = card)
+```
+
+---
+## First Stage
+
+```{r}
+stargazer(manual_stage1_with_exog, stage1_with_exog ,dep.var.labels.include = F, dep.var.caption = "Model:",
+          type = "text", keep.stat = c("n"))
+```
+
+---
+
+## Second Stage
+
+.pull-left[
+```{r, echo=F}
+stargazer(manual_twosls_with_exog, twosls_with_exog ,dep.var.labels.include = F, dep.var.caption = "Model:",
+          type = "text", keep.stat = c("n"))
+```
+]
+
+--
+
+.pull-right[
+  .red[.large[Keep in mind that the right standard errors <br>
+  aren't the standard errors of the second stage!]]
+]
+
+---
+
+# Testing for weak instruments
+
+- Remember that weak instrument can cause the 2SLS estimator to be biased towards OLS. 
+
+- We can test that by testing the null that the coefficients on the excluded instruments are 0.
+
+- This is a simple Wald / F-test.
+
+```{r}
+r = 0
+R = matrix(c(0, 0, 0, 1), nrow = 1)
+waldtest(stage1_with_exog, R, r)
+```
+
+---
+
+# Testing for weak instruments
+
+`felm` calculates this F-statistic by default (and also the robust version):
+```{r}
+stage1_with_exog$iv1fstat
+stage1_with_exog$rob.iv1fstat
+```
+
+---
+class: title-slide-section-blue, middle, center
+name: multiple
+
+# Multiple endogenous variables
+
+---
+
+# Estimation
+
+Very easy with the `felm` function:
+
+```{r}
+#genetate squared education,
+#so that we'll have two endogenous variables:
+card = card %>%
+  mutate(educ2 = educ^2)
+
+twosls = felm(lwage ~ fatheduc + motheduc | 0 | (educ | educ2 ~ nearc4 + nearc2), data = card)
+
+stage1 = twosls$stage1
+```
+
+---
+
+## First Stage
+
+```{r}
+summary(stage1, lhs = "educ")$coefficients
+```
+
+
+```{r}
+summary(stage1, lhs = "educ2")$coefficients
+```
+
+---
+
+## Second Stage
+
+.pull-left[
+```{r, echo=F}
+stargazer(twosls, type = "text", keep.stat = c("n"))
+```
+]
+
+--
+
+.pull-right[
+.red[.large[In the following slides we'll see that
+            this estimation suffers from a weak IV problem,
+            so do not try to interpret these results]]
+]
+---
+
+# Testing for weak instruments
+
+```{r}
+stage1$iv1fstat
+```
+
+--
+
+<br><br>
+.red[.large[What is this test? Is it enough?]]
+
+---
+class: large
+
+# Testing for weak instruments
+
+- This is an equation-by-equation F-test
+
+- For each first stage equation, we test $H_0: \beta_{nearc2} = \beta_{nearc4} = 0$
+
+- Remember the alternative: $H_1: \beta_{nearc2} \not= 0$ .red[or] $\beta_{nearc4} \not= 0$
+
+- So a single instrument could be correlated with all the endogenous regressors,
+while the rest of the instruments are not
+
+- This is not enough
+
+---
+class: large
+
+# Conditional F-test
+
+The **general** idea proposed by Angrist and Pischke (2009):
+
+- Consider a model with two endogenous variables, $x_1$ and $x_2$ and a valid vector of instruments $z$
+
+- Let's look at the following model: $y = \beta_1x_1 + \beta_2\hat{x_2} + u*$
+  
+  - $\hat{x_2}$ is exogenous since $\hat{x_2} = P_zx_2$
+  
+  - $x_1$ is endogenous and (potentially) correlated with $\hat{x_2}$
+  
+---
+class: large
+
+# Conditional F-test
+  
+- Now let's regress $x_1$ on $\hat{x_2}$ and keep the residuals $M_{\hat{x_2}}x_1$
+
+- Let's look at the following model: $y = \beta_1M_{\hat{x_2}}x_1 + \epsilon$
+
+  - $M_{\hat{x_2}}x_1$ is endogenous, but not correlated with $\hat{x_2}$
+  
+  - This is the short version of the previous equation
+  
+  - Applying the 2SLS procedure yields a consistent estimate for $\beta_1$
+  
+- So now we have only one endogenous variable, and we can use the usual F-test in the first stage: $M_{\hat{x_2}}x_1 = \kappa Z + \epsilon*$
+
+--
+
+- .red[Note: This is just the general idea. See Sanderson and Windmeijer (2016) for the formal test]
+
+---
+class: large
+
+# Conditional F-test
+
+`condfstat` from the `lfe` package performs that test:
+```{r}
+condfstat(twosls)
+```
