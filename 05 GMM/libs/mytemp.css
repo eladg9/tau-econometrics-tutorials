@@ -1,0 +1,24 @@
+.large { font-size: 150% }
+.meduim { font-size: 130% }
+.white { color: white; }
+.red { color: red; }
+.blue { color: blue; }
+.green { color: green; }
+.yellow { color: yellow; }
+.orange { color: orange; }
+.purple { color: purple; }
+.gray { color: gray; }
+.grey { color: gray; }
+
+/* code higlighting */
+.remark-code-string-highlighted, 
+.remark-code-line-highlighted {
+    background-color: yellow;
+}
+
+
+.remark-slide-number{
+  font-size: 16px!important;
+  bottom: 8px;
+  right: 16px;
+}

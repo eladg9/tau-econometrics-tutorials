@@ -1,0 +1,408 @@
+---
+title: "Generalized Method of Moments"
+author: "Elad Guttman"
+output:
+  xaringan::moon_reader:
+    seal: false
+    css: ["middlebury", "middlebury-fonts" , "libs/mytemp.css"]
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: '16:9'
+
+---
+
+class: title-slide-section-blue, middle, center
+
+# Estimating Models by The Generalized Method of Moments
+
+##Elad Guttman
+
+---
+class: large
+
+# Outline
+
+1. [Working with panel data](#panel)
+
+2. [GMM](#gmm)
+  
+  2.1 [A Reminder](#reminder)
+  
+  2.2 [Examples](#example)
+
+---
+class: title-slide-section-blue, middle, center
+name: panel
+
+#Working with panel data
+
+---
+class: large
+
+# `dplyr` basic verbs
+
+- `mutate()` - adds new variables that are functions of existing variables
+
+- `select()` - picks variables based on their names.
+
+- `filter()` - picks cases based on their values.
+
+- `summarise()` - reduces multiple values down to a single summary.
+
+- `arrange()` - changes the ordering of the rows. 
+
+---
+
+# Leads and Lags
+
+Another two useful `dplyr` functions for working with panel data are the `lead` and `lag` functions:
+
+- `lag` - Find the "previous" values in a vector. 
+
+- `lead` - Find the "next" values in a vector.
+
+```{r, warning=F, message=F}
+library(tidyverse)
+x = 1:10
+lag(x, n = 1)
+lag(x, n = 2)
+lead(x, n = 1)
+
+```
+
+---
+
+# Combining all together
+
+Let’s combine it all together to calculate the daily log return ( $r_t = log(\frac{p_t}{p_{t-1}})$ ) on several stock prices:
+
+```{r, message=F, warning=F}
+library(tidyquant)
+stocks = c("AAPL", "NFLX", "AMZN")
+prices = tq_get(stocks,
+                 from = "2020-01-01",
+                 to = "2020-03-01",
+                 get = "stock.prices")
+head(prices, 4)
+
+```
+
+---
+
+# Combining all together
+
+```{r, message=F, warning=F}
+prices = prices %>%
+  arrange(symbol, date) %>%
+  group_by(symbol) %>%
+  mutate(log_return = log(open/lag(open))) %>%
+  ungroup()
+
+head(prices %>% filter(symbol == "AAPL"), 3)
+head(prices %>% filter(symbol == "NFLX"), 3)
+```
+
+---
+
+class: title-slide-section-blue, middle, center
+name: gmm
+
+#GMM
+
+---
+
+class: title-slide-section-blue, middle, center
+name: reminder
+
+#A Reminder
+
+---
+class: large
+
+# The Estimator
+
+- We defined the objective function:
+
+  $J_N(\theta) = [\frac{1}{N}\sum{g(w_i, \theta)}]' \hspace{0.1cm} W \hspace{0.1cm}[\frac{1}{N}\sum{g(w_i, \theta)}]$
+
+- Then we defined the GMM estimator as:
+
+  $\hat{\theta}_{GMM} = argmin \hspace{0.1cm} J_N(\theta)$
+  
+- For every weighting matrix $W$ we get a consistent estimator for $\theta$, but the following is the optimal one:
+
+  $\hat{W}_{opt} = \hat{\Lambda}^{-1}$ where $\hat{\Lambda} = \frac{1}{N}\sum{[g(w_i, \hat{\theta}) \hspace{0.1cm} g(w_i, \hat{\theta})']}$
+  
+---
+class: large
+
+# The Estimator
+
+- Initially, we can't calculate $\hat{W}_{opt}$ since we don't know $\hat{\theta}$
+
+- The solution is to estimate GMM in two steps:
+
+  1. Estimate $\hat{\theta}_{step 1}$ using the identity matrix (or any other matrix) as a weighting matrix.
+  
+  2. Estimate $\hat{\theta}_{GMM}$ using $\hat{\Lambda}_{step 1}^{-1}$ as a weighting matrix, to get the efficient **Two-Step GMM Estimator**
+  
+- Another option is to keep iterating until convergence is obtained (the **Iterated GMM Estimator**)
+
+
+---
+class: title-slide-section-blue, middle, center
+name: example
+
+#Examples
+
+---
+
+#The `momentfit` package
+
+- `momentfit` is the R package for estimating models by GMM
+
+- The package supports 3 different ways (or classes) to represent the moment conditions:
+
+  1. The “linearModel” class - for the special case of linear models
+  
+  2. The “formulaModel” class - for the special case of Minimum Distance Estimation
+  
+  3. The “functionModel” class - for the general case
+
+- We'll use the `bwght` dataset, where we consider the following model:
+
+  $log(bwght) = \beta_0 + \beta_1male + \beta_2parity + \beta_3log(faminc) + \beta_4packs + u$
+
+  to estimate the effect of cigarette smoking on the weight of newborns, using cigarette price as an instrument
+  
+- In PS9 you saw that in fact cigarette price is not a good instrument, so we'll not try to interpret the results
+
+---
+
+# The “linearModel” class
+
+```{r message=F, warning=F}
+library(wooldridge)
+library(momentfit)
+library(lfe)
+
+data("bwght")
+
+linModel = momentModel(g = lbwght ~ male + parity + lfaminc + packs,
+                       x =  ~ male + parity + lfaminc + cigprice,
+                       data = bwght,
+                       vcov = "iid") #vcov under homoskedasticity
+linModel
+```
+
+---
+
+class: large 
+
+# The “linearModel” class
+
+```{r}
+gmm = gmmFit(linModel, type = "twostep")
+
+#for comparison:
+iv = felm(lbwght ~ male + parity + lfaminc | 0 | (packs ~  cigprice), data = bwght)
+
+```
+
+<br>
+  
+What would happen if we set .green[`type = "onestep"`] instead?
+
+---
+class: large
+
+# The Just-Identified Case
+
+- Remember that in case when $g$ is linear, i.e., $g(w_i, \theta) = z_i'(y_i- x_i\theta)$, we have a closed formula for $\hat{\theta}_{GMM}$:
+
+  $\hat{\theta}_{GMM} = ((X'Z) \cdot W \cdot (Z'X))^{-1} \cdot (X'Z) \cdot W \cdot Z'y$
+
+- When $K = L$ (the just-identified case), $X'Z$ and $W$ are square matrices, and therefore the GMM estimator reduces to:
+  
+  $\hat{\theta}_{GMM} = (Z'X)^{-1}Z'y$
+                           
+- So in this case $W$ plays no rule
+
+---
+
+# The Just-Identified Case
+
+```{r}
+summary(iv)$coefficients
+summary(gmm)@coef
+```
+---
+
+# The “functionModel” class
+
+We can estimate the same model by defining $g$ directly:
+
+```{r}
+g = function(theta, dat){
+  #extract the relevant variables:
+  X = dat %>%
+    select(intercept, male, parity, lfaminc, packs) %>%
+    as.matrix()
+  Z = dat %>%
+    select(intercept, male, parity, lfaminc, cigprice) %>%
+    as.matrix()
+  y = matrix(dat$lbwght, ncol = 1)
+  beta = as.matrix(theta, ncol = 1)
+  u = as.vector(y - X%*%beta)
+  return(Z*u)
+}
+
+#add an intercept
+bwght = bwght %>% mutate(intercept = 1)
+#initial values for the numerical algorithm:
+theta0 = rnorm(5)
+names(theta0) = c("intercept", "male", "parity", "lfaminc", "packs")
+funModel = momentModel(g = g, 
+                       x = bwght, 
+                       theta0 = theta0,
+                       vcov = "iid") #vcov under heteroskedasticity
+```
+
+---
+# The “functionModel” class
+
+```{r}
+funModel
+```
+
+---
+
+# The “functionModel” class
+
+```{r}
+gmm2 = gmmFit(funModel, type = "twostep")
+summary(iv, robust = T)$coefficients
+summary(gmm2)@coef
+```
+
+---
+
+# The Over-Identified Case
+
+- Now things are getting more interesting... 
+
+- We'll estimate the model using 2 different weighting matrices: the 2SLS matrix and the optimal matrix (Do we expect to get different results?)
+
+- But first need to modify $g$:
+
+```{r}
+g = function(theta, dat){
+  #extract the relevant variables:
+  X = dat %>%
+    select(intercept, male, parity, lfaminc, packs) %>%
+    as.matrix()
+  Z = dat %>%
+    select(intercept, male, parity, lfaminc, cigprice, cigprice2) %>%
+    as.matrix()
+  y = matrix(dat$lbwght, ncol = 1)
+  beta = as.matrix(theta, ncol = 1)
+  u = as.vector(y - X%*%beta)
+  return(Z*u)
+}
+```
+
+---
+
+# The Over-Identified Case
+
+```{r}
+#generate more instrument
+bwght = bwght %>% mutate(cigprice2 = cigprice^2)
+model = momentModel(g = g, 
+                    x = bwght, 
+                    theta0 = theta0,
+                    vcov = "iid")
+
+#estimate with the optimal matrix
+res_with_optimal_mat = gmmFit(model, type = "twostep")
+
+#estimate with the 2sls matrix
+
+#define (Z'Z)^-1
+Z = bwght %>%
+  select(intercept, male, parity, lfaminc, cigprice, cigprice2) %>%
+  as.matrix()
+W = solve(t(Z)%*%Z)  
+res_with_2sls_mat = gmmFit(model, type = "onestep", weights = W)
+
+```
+
+---
+
+# The Over-Identified Case
+
+```{r, warning=F, message=F}
+summary(res_with_optimal_mat)@coef
+summary(res_with_optimal_mat)@specTest
+```
+
+---
+
+# The Over-Identified Case
+
+```{r, warning=F, message=F}
+summary(res_with_2sls_mat)@coef
+summary(res_with_2sls_mat)@specTest
+```
+
+---
+class: large
+
+# Minimum Distance Estimation
+
+- This is a special case when moments have data separately from parameters
+
+- For example, consider the problem of estimating the parameters of the normal distribution $\mu$ and $\sigma^2$ 
+
+- The moments conditions are:
+
+  1. $x_i - \mu$
+  
+  2. ${x_i}^2 -\mu^2 - \sigma^2$
+
+- Let's go back to the prices data and estimate these parameters for the distribution of log-returns (which in this specific case seems like the normal distribution)
+
+---
+
+# The “formulaModel” class
+
+```{r, message=F, warning=F}
+moment_conditions = list(log_return ~ mu,
+                         log_return^2 ~ mu^2 + sigma2)
+
+theta0 = c(0.1, 0.1)
+names(theta0) = c("mu", "sigma2")
+formulaModel = momentModel(g = moment_conditions, 
+                           theta0 = theta0, 
+                           data = prices, 
+                           vcov = "CL", #clustered SE
+                           #also need to provide the clustering variable:
+                           vcovOptions = list(cluster = ~ symbol))
+
+formulaModel
+```
+
+---
+
+# The “formulaModel” class
+
+```{r, message=F, warning=F}
+res = gmmFit(formulaModel, type = "twostep")
+summary(res)@coef
+#convergence status for the numerical optimization algorithm:
+summary(res)@convergence
+```
+
