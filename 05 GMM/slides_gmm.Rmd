@@ -389,8 +389,8 @@ formulaModel = momentModel(g = moment_conditions,
                            theta0 = theta0, 
                            data = prices, 
                            vcov = "CL", #clustered SE
-                           #also need to provide the clustering variable:
-                           vcovOptions = list(cluster = ~ symbol))
+                           #also need to provide the clustering variable/s:
+                           vcovOptions = list(cluster = ~ symbol + date))
 
 formulaModel
 ```

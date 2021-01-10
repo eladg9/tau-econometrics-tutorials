@@ -400,11 +400,11 @@ summary(gmm2)@coef
 
 ```
 ##               Estimate Std. Error     t value     Pr(&gt;|t|)
-## intercept  4.467861773 0.25585173 17.46269922 2.755897e-68
-## male       0.029820502 0.01718982  1.73477673 8.278036e-02
-## parity    -0.001239055 0.02532974 -0.04891702 9.609854e-01
-## lfaminc    0.063645932 0.05696979  1.11718742 2.639142e-01
-## packs      0.797105077 1.11121370  0.71732834 4.731715e-01
+## intercept  4.467861661 0.25585160 17.46270759 2.755493e-68
+## male       0.029820504 0.01718982  1.73477648 8.278040e-02
+## parity    -0.001239063 0.02532970 -0.04891738 9.609851e-01
+## lfaminc    0.063645957 0.05696972  1.11718916 2.639135e-01
+## packs      0.797105532 1.11121228  0.71732967 4.731707e-01
 ```
 
 ---
@@ -471,11 +471,11 @@ summary(res_with_optimal_mat)@coef
 
 ```
 ##               Estimate Std. Error    t value     Pr(&gt;|t|)
-## intercept  4.457063590 0.21032171 21.1916476 1.140364e-99
-## male       0.029931177 0.01775034  1.6862310 9.175132e-02
-## parity    -0.002423397 0.01942087 -0.1247831 9.006952e-01
-## lfaminc    0.066078306 0.04652062  1.4204089 1.554887e-01
-## packs      0.846892950 0.87865412  0.9638525 3.351199e-01
+## intercept  4.457063614 0.21032143 21.1916756 1.139685e-99
+## male       0.029931177 0.01775034  1.6862309 9.175133e-02
+## parity    -0.002423394 0.01942094 -0.1247825 9.006957e-01
+## lfaminc    0.066078300 0.04652058  1.4204099 1.554884e-01
+## packs      0.846892838 0.87865302  0.9638536 3.351194e-01
 ```
 
 ```r
@@ -499,12 +499,12 @@ summary(res_with_2sls_mat)@coef
 ```
 
 ```
-##               Estimate Std. Error     t value      Pr(&gt;|t|)
-## intercept  4.458513135 0.20885780 21.34712300 4.146951e-101
-## male       0.029986374 0.01765379  1.69857987  8.939837e-02
-## parity    -0.001966193 0.02006417 -0.09799525  9.219361e-01
-## lfaminc    0.065698507 0.04621798  1.42149246  1.551736e-01
-## packs      0.836839472 0.87549936  0.95584248  3.391518e-01
+##               Estimate Std. Error    t value      Pr(&gt;|t|)
+## intercept  4.457142557 0.20969203 21.2556606 2.922210e-100
+## male       0.030005057 0.01772721  1.6925988  9.053186e-02
+## parity    -0.002062811 0.02015142 -0.1023656  9.184665e-01
+## lfaminc    0.065998458 0.04640402  1.4222573  1.549516e-01
+## packs      0.842549953 0.87899645  0.9585362  3.377924e-01
 ```
 
 ```r
@@ -515,7 +515,7 @@ summary(res_with_2sls_mat)@specTest
 ## 
 ##  J-Test 
 ##                 Statistics  df   pvalue
-## Test E(g)=0:     0.0053864   1  0.94149
+## Test E(g)=0:     0.0052679   1  0.94214
 ```
 
 ---
@@ -550,8 +550,8 @@ formulaModel = momentModel(g = moment_conditions,
                            theta0 = theta0, 
                            data = prices, 
                            vcov = "CL", #clustered SE
-                           #also need to provide the clustering variable:
-                           vcovOptions = list(cluster = ~ symbol))
+                           #also need to provide the clustering variable/s:
+                           vcovOptions = list(cluster = ~ symbol + date))
 
 formulaModel
 ```
@@ -561,7 +561,7 @@ formulaModel
 ## *********************************
 ## Moment type: formula
 ## Covariance matrix: CL
-## Clustered based on: symbol
+## Clustered based on: symbol and date
 ## Number of regressors: 2
 ## Number of moment conditions: 2
 ## Number of Endogenous Variables: 0
@@ -580,8 +580,8 @@ summary(res)@coef
 
 ```
 ##             Estimate   Std. Error    t value     Pr(&gt;|t|)
-## mu     -0.0005408820 1.868354e-03 -0.2894965 7.722014e-01
-## sigma2  0.0006429251 5.811574e-05 11.0628390 1.899870e-28
+## mu     -0.0005408823 0.0031913516 -0.1694838 8.654161e-01
+## sigma2  0.0006429248 0.0001101513  5.8367435 5.323096e-09
 ```
 
 ```r
